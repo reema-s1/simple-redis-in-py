@@ -1,5 +1,38 @@
 # simple-redis-in-py
 
+A minimal, from-scratch clone of Redis's core idea: an in-memory key-value store, reachable over TCP by multiple clients at once, with expiring keys and disk persistence.
+
+## Architecture
+
+```mermaid
+flowchart TD
+    C1["Client"]
+    C2["Client"]
+    C3["Client"]
+
+    C1 -- "TCP socket, one JSON command per connection" --> Accept
+    C2 -- "TCP socket, one JSON command per connection" --> Accept
+    C3 -- "TCP socket, one JSON command per connection" --> Accept
+
+    subgraph Server["server3.py"]
+        Accept["main thread\nserver_socket.accept() loop"]
+        Accept -- "spawns" --> T1["worker thread\nhandle_client()"]
+        Accept -- "spawns" --> T2["worker thread\nhandle_client()"]
+        Accept -- "spawns" --> T3["worker thread\nhandle_client()"]
+
+        T1 --> Lock(("threading.Lock()\nserializes access"))
+        T2 --> Lock
+        T3 --> Lock
+
+        Lock --> Store[("in-memory state\nstore: dict\nexpiry: dict")]
+    end
+
+    Store -- "save() after every write" --> Disk[("data.json")]
+    Disk -. "load() once, at startup" .-> Store
+```
+
+Each client connection gets its own thread, so N clients can be "talking" to the server at the same time. Every thread, however, has to go through the same `threading.Lock()` before it touches `store`/`expiry`, so command execution itself stays serialized — one command's read-modify-write finishes before the next one starts, which is what keeps concurrent `SET`/`GET`/`DELETE`s from corrupting each other. Reads that don't touch a TTL (bare `GET`) still take the lock, trading a little throughput for a much simpler correctness argument. After any mutating command, the whole `store` + `expiry` state is rewritten to `data.json`, and that file is read back into memory once when the server starts — that's the entire persistence story.
+
 ## Requirements
 
 - Python 3.x
