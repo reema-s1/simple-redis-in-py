@@ -23,8 +23,18 @@
 
 ## Storage
 
-The server stores key-value pairs in memory using a Python dictionary. Commands like `SET`, `GET`, `DELETE`, and `MSET` allow you to manipulate and retrieve stored data. All stored data is volatile and will be lost when the server is restarted.
+The server stores key-value pairs in memory using a Python dictionary. Commands like `SET`, `GET`, `DELETE`/`DEL`, `EXISTS`, `EXPIRE`, and `MSET` allow you to manipulate and retrieve stored data.
+
+Data is also persisted to a `data.json` file on every write, and reloaded from that file on startup, so it survives server restarts.
+
+## Concurrency
+
+Each client connection is handled on its own thread, so multiple clients can connect and issue commands at the same time. A lock guards access to the in-memory store so concurrent reads/writes stay consistent.
+
+## Key Expiry
+
+Use `EXPIRE key ttl_seconds` to set a key to expire after a number of seconds. Expired keys are lazily removed the next time they're accessed (via `GET`, `EXISTS`, `DELETE`, etc.).
 
 ## Communication
 
-The client and server communicate via a TCP connection using JSON-formatted strings. The client sends commands to the server in JSON format, and the server responds in JSON as well. This makes the protocol easy to understand and extend for various actions like `SET`, `GET`, `DELETE`, `FLUSH`, `MSET`, and `MGET`.
+The client and server communicate via a TCP connection using JSON-formatted strings. The client sends commands to the server in JSON format, and the server responds in JSON as well. This makes the protocol easy to understand and extend for various actions like `SET`, `GET`, `DELETE`/`DEL`, `EXISTS`, `EXPIRE`, `FLUSH`, `MSET`, and `MGET`.

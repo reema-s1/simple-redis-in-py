@@ -6,8 +6,8 @@ class Client:
         self.host= host
         self.port= port
 
-    def send_request(self,action, key=None, value=None, keys=None, items=None):
-        request = {'action': action} 
+    def send_request(self,action, key=None, value=None, keys=None, items=None, ttl=None):
+        request = {'action': action}
         if key is not None:
             request['key'] = key
         if value is not None:
@@ -16,6 +16,8 @@ class Client:
             request['keys'] = keys
         if items is not None:
             request['items']= items
+        if ttl is not None:
+            request['ttl'] = ttl
 
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as client_socket:
             client_socket.connect((self.host, self.port))
@@ -26,10 +28,10 @@ class Client:
     def run(self):
         print("currently in client - enter 'bye' to quit:c")
         while True:
-            command = input("\nenter command (example - SET key value, GET key, DELETE key, FLUSH, MSET key1=value1,key2=value2, MGET key1,key2): ")
+            command = input("\nenter command (example - SET key value, GET key, DELETE key, EXISTS key, EXPIRE key ttl_seconds, FLUSH, MSET key1=value1,key2=value2, MGET key1,key2): ")
             if command.lower()== 'bye':
                 break
-            
+
             parts = command.split()
             action= parts[0].upper()
 
@@ -40,9 +42,16 @@ class Client:
             elif action == 'GET':
                 key = parts[1]
                 response = self.send_request(action,key=key)
-            elif action == 'DELETE':
+            elif action == 'DELETE' or action == 'DEL':
                 key= parts[1]
                 response = self.send_request(action, key=key)
+            elif action == 'EXISTS':
+                key = parts[1]
+                response = self.send_request(action, key=key)
+            elif action == 'EXPIRE':
+                key = parts[1]
+                ttl = int(parts[2])
+                response = self.send_request(action, key=key, ttl=ttl)
             elif action == 'FLUSH':
                 response = self.send_request(action)
             elif action== 'MSET':
